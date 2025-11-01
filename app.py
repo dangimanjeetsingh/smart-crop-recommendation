@@ -1,6 +1,31 @@
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import streamlit as st
+import streamlit as st
+
+st.set_page_config(page_title="KrishiVox – Smart Crop Recommender", page_icon="🌾", layout="centered")
+
+# ======= CUSTOM HEADER =======
+st.markdown("""
+    <style>
+        .brand-title {
+            font-size: 40px;
+            font-weight: 700;
+            text-align: center;
+            color: #FFD700;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+        .subtext {
+            text-align: center;
+            font-size: 16px;
+            color: #CCCCCC;
+            margin-bottom: 40px;
+        }
+    </style>
+    <div class="brand-title">🌾 KrishiVox</div>
+    <div class="subtext">AI-Powered Smart Crop Recommendation</div>
+""", unsafe_allow_html=True)
 
 st.title("🌾 Smart Crop Recommendation System")
 
