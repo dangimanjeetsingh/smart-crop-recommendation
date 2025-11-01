@@ -62,7 +62,8 @@ cycle = st.number_input("Expected Crop Cycle (days)", min_value=30, value=120)
 irrigation = st.selectbox("Access to Irrigation", ["Yes","No"])
 fertilizer = st.selectbox("Access to Fertilizers", ["Yes","No"])
 
-if st.button("Get Recommendations"):
+# ---------- ACTION BUTTON ----------
+if st.button("🌿 Get Recommendations"):
     climate, temp, zone = state_climate_map.get(state, ("Tropical","20-35","General Zone"))
 
     filtered = df.loc[
@@ -110,15 +111,76 @@ if st.button("Get Recommendations"):
         (0.1*filtered["Subsidy_s"]) +
         (0.1*(1 - filtered["Risk_s"])) -
         (0.05*filtered["Eco_s"])
-    )*100
+    ) * 100
 
     filtered["final_score_%"] = filtered["final_score_%"].round(2)
     filtered["market_stability"] = filtered["price_volatility_%"].apply(
         lambda x: "💹 Very Stable" if x <= 4 else ("⚖️ Moderate Risk" if x <= 7 else "📉 Volatile")
     )
 
-    st.success(f"✅ Found {len(filtered)} matching crops for {state}, {soil} soil, {season} season")
-    st.dataframe(filtered.sort_values("final_score_%", ascending=False).head(5))
+    # Save & switch to result page
+    st.session_state["results"] = filtered.sort_values("final_score_%", ascending=False).head(5)
+    st.session_state["page"] = "results"
 
-    filtered.to_csv("Recommended_Crops.csv", index=False)
-    st.download_button("Download Results", data=open("Recommended_Crops.csv", "rb"), file_name="Recommended_Crops.csv")
+# ---------- RESULT PAGE ----------
+if "page" in st.session_state and st.session_state["page"] == "results":
+    filtered = st.session_state["results"]
+
+    st.markdown("""
+        <style>
+            .result-box {
+                background: linear-gradient(145deg, #0d0d0d, #1a1a1a);
+                border: 2px solid #FFD700;
+                border-radius: 20px;
+                padding: 40px;
+                box-shadow: 0 0 25px rgba(255,215,0,0.3);
+                text-align: center;
+                animation: fadeIn 1s ease-in-out;
+            }
+            .result-title {
+                font-size: 32px;
+                font-weight: 700;
+                color: #FFD700;
+                margin-bottom: 10px;
+            }
+            .crop-card {
+                background-color: #111;
+                border: 1px solid #444;
+                border-radius: 15px;
+                padding: 20px;
+                margin-bottom: 20px;
+            }
+            .crop-name {
+                font-size: 28px;
+                font-weight: 700;
+                color: #FFD700;
+            }
+            .crop-details {
+                color: #CCCCCC;
+                font-size: 15px;
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<div class='result-box'><div class='result-title'>🌱 Top Crop Recommendations</div></div>", unsafe_allow_html=True)
+    st.write("")
+
+    for _, row in filtered.iterrows():
+        st.markdown(f"""
+            <div class="crop-card">
+                <div class="crop-name">{row['crop_name']}</div>
+                <div class="crop-details">
+                    ROI: {row['expected_roi_%']}% | Profit: ₹{int(row['net_profit_per_acre_inr']):,} per acre<br>
+                    Stability: {row['market_stability']} | Climate: {row['climate_requirement']}
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.download_button("⬇️ Download Full Report", data=filtered.to_csv(index=False), file_name="Recommended_Crops.csv")
+    st.write("")
+    if st.button("🔄 Go Back to Form"):
+        st.session_state["page"] = "form"
