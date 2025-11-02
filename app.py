@@ -1,34 +1,74 @@
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import streamlit as st
-import streamlit as st
 
-st.set_page_config(page_title="KrishiVox – Smart Crop Recommender", page_icon="🌾", layout="centered")
+# ======= PAGE CONFIG =======
+st.set_page_config(page_title="KrishiVox – Smart Crop Recommender", page_icon="🌱", layout="wide")
 
-# ======= CUSTOM HEADER =======
+# ======= GLOBAL THEME =======
 st.markdown("""
     <style>
-        .brand-title {
-            font-size: 40px;
-            font-weight: 700;
-            text-align: center;
-            color: #FFD700;
-            letter-spacing: 2px;
-            margin-bottom: 20px;
+        body {
+            background: linear-gradient(135deg, #e8f9ee, #f4fff9);
+            font-family: 'Inter', sans-serif;
         }
-        .subtext {
+        .main {
+            background: transparent !important;
+        }
+        .title {
             text-align: center;
-            font-size: 16px;
-            color: #CCCCCC;
+            font-size: 48px;
+            color: #00b35f;
+            font-weight: 700;
+            margin-top: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #333;
+            font-size: 20px;
             margin-bottom: 40px;
         }
+        .card {
+            background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0px 4px 15px rgba(0,0,0,0.08);
+            padding: 25px;
+            transition: 0.3s;
+        }
+        .card:hover {
+            box-shadow: 0px 6px 20px rgba(0,0,0,0.12);
+        }
+        .crop-card {
+            background-color: #f8fff9;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            border: 1px solid #d9f3df;
+        }
+        .crop-name {
+            color: #00b35f;
+            font-size: 22px;
+            font-weight: 600;
+        }
+        .crop-details {
+            color: #444;
+            font-size: 15px;
+        }
+        button[kind="primary"] {
+            background-color: #00b35f !important;
+            color: white !important;
+            border-radius: 8px !important;
+            padding: 0.5rem 1rem !important;
+            font-weight: 600;
+        }
     </style>
-    <div class="brand-title">🌾 KrishiVox</div>
-    <div class="subtext">AI-Powered Smart Crop Recommendation</div>
 """, unsafe_allow_html=True)
 
-st.title("🌾 Smart Crop Recommendation System")
+# ======= HEADER =======
+st.markdown("<div class='title'>🌱 KrishiVox</div>", unsafe_allow_html=True)
+st.markdown("<div class='subtitle'>AI-Powered Smart Crop Recommendation</div>", unsafe_allow_html=True)
 
+# ======= LOAD DATA =======
 df = pd.read_csv("final_dataset.csv")
 df.columns = df.columns.str.strip().str.lower()
 
@@ -52,18 +92,26 @@ state_climate_map = {
     "Himachal Pradesh": ("Hilly","12-22","Western Himalaya"),
 }
 
-# ---- UI Inputs ----
-state = st.selectbox("Select State", list(state_climate_map.keys()))
-soil = st.selectbox("Soil Type", ["Loamy","Sandy loam","Clayey"])
-water = st.selectbox("Water Availability", ["Low","Medium","High"])
-season = st.selectbox("Preferred Season", ["Kharif","Rabi","Perennial"])
-capital = st.number_input("Available Capital (₹ per acre)", min_value=0.0, value=50000.0)
-cycle = st.number_input("Expected Crop Cycle (days)", min_value=30, value=120)
-irrigation = st.selectbox("Access to Irrigation", ["Yes","No"])
-fertilizer = st.selectbox("Access to Fertilizers", ["Yes","No"])
+# ======= INPUT FORM =======
+st.markdown("### 🌾 Enter Your Farm Details")
 
-# ---------- ACTION BUTTON ----------
-if st.button("🌿 Get Recommendations"):
+with st.container():
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        state = st.selectbox("State", list(state_climate_map.keys()))
+        soil = st.selectbox("Soil Type", ["Loamy","Sandy loam","Clayey"])
+    with col2:
+        water = st.selectbox("Water Availability", ["Low","Medium","High"])
+        season = st.selectbox("Preferred Season", ["Kharif","Rabi","Perennial"])
+    with col3:
+        capital = st.number_input("Available Capital (₹ per acre)", min_value=0.0, value=50000.0)
+        cycle = st.number_input("Expected Crop Cycle (days)", min_value=30, value=120)
+
+    irrigation = st.selectbox("Access to Irrigation", ["Yes","No"])
+    fertilizer = st.selectbox("Access to Fertilizers", ["Yes","No"])
+
+# ======= BUTTON =======
+if st.button("🌿 Get AI Recommendations", use_container_width=True):
     climate, temp, zone = state_climate_map.get(state, ("Tropical","20-35","General Zone"))
 
     filtered = df.loc[
@@ -91,6 +139,7 @@ if st.button("🌿 Get Recommendations"):
         filtered = df.loc[df["season"].str.lower().str.strip() == season.lower()] \
             .sort_values("expected_roi_%", ascending=False).head(5).copy()
 
+    # Score Calculation
     scaler = MinMaxScaler()
     for c in ["expected_roi_%","net_profit_per_acre_inr","subsidy_or_grant_%",
               "price_volatility_%","environmental_impact_score"]:
@@ -118,69 +167,21 @@ if st.button("🌿 Get Recommendations"):
         lambda x: "💹 Very Stable" if x <= 4 else ("⚖️ Moderate Risk" if x <= 7 else "📉 Volatile")
     )
 
-    # Save & switch to result page
-    st.session_state["results"] = filtered.sort_values("final_score_%", ascending=False).head(5)
-    st.session_state["page"] = "results"
-
-# ---------- RESULT PAGE ----------
-if "page" in st.session_state and st.session_state["page"] == "results":
-    filtered = st.session_state["results"]
-
-    st.markdown("""
-        <style>
-            .result-box {
-                background: linear-gradient(145deg, #0d0d0d, #1a1a1a);
-                border: 2px solid #FFD700;
-                border-radius: 20px;
-                padding: 40px;
-                box-shadow: 0 0 25px rgba(255,215,0,0.3);
-                text-align: center;
-                animation: fadeIn 1s ease-in-out;
-            }
-            .result-title {
-                font-size: 32px;
-                font-weight: 700;
-                color: #FFD700;
-                margin-bottom: 10px;
-            }
-            .crop-card {
-                background-color: #111;
-                border: 1px solid #444;
-                border-radius: 15px;
-                padding: 20px;
-                margin-bottom: 20px;
-            }
-            .crop-name {
-                font-size: 28px;
-                font-weight: 700;
-                color: #FFD700;
-            }
-            .crop-details {
-                color: #CCCCCC;
-                font-size: 15px;
-            }
-            @keyframes fadeIn {
-                from { opacity: 0; transform: translateY(10px); }
-                to { opacity: 1; transform: translateY(0); }
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown("<div class='result-box'><div class='result-title'>🌱 Top Crop Recommendations</div></div>", unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown("## 🌱 Top Recommended Crops")
     st.write("")
 
-    for _, row in filtered.iterrows():
+    for _, row in filtered.sort_values("final_score_%", ascending=False).head(5).iterrows():
         st.markdown(f"""
             <div class="crop-card">
                 <div class="crop-name">{row['crop_name']}</div>
                 <div class="crop-details">
-                    ROI: {row['expected_roi_%']}% | Profit: ₹{int(row['net_profit_per_acre_inr']):,} per acre<br>
+                    ROI: {row['expected_roi_%']}% | Profit: ₹{int(row['net_profit_per_acre_inr']):,}/acre<br>
                     Stability: {row['market_stability']} | Climate: {row['climate_requirement']}
                 </div>
             </div>
         """, unsafe_allow_html=True)
 
-    st.download_button("⬇️ Download Full Report", data=filtered.to_csv(index=False), file_name="Recommended_Crops.csv")
-    st.write("")
-    if st.button("🔄 Go Back to Form"):
-        st.session_state["page"] = "form"
+    st.download_button("⬇️ Download Report", data=filtered.to_csv(index=False),
+                       file_name="KrishiVox_Recommendations.csv", use_container_width=True)
+
