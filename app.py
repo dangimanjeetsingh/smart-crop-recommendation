@@ -1,4 +1,4 @@
-# app.py
+# app.py (updated - navigation & CSS fixes)
 import streamlit as st
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
@@ -19,6 +19,7 @@ TEXT = {
         "results_title": "🌱 Top Crop Recommendations",
         "back_home": "🏠 Back to Home",
         "download": "⬇️ Download Full Report",
+        "no_results": "No matching crops found — showing closest matches."
     },
     "hi": {
         "brand": "कृषिवॉक्स",
@@ -31,42 +32,31 @@ TEXT = {
         "results_title": "🌱 शीर्ष सिफारिशें",
         "back_home": "🏠 होम पर वापस जाएँ",
         "download": "⬇️ पूरी रिपोर्ट डाउनलोड करें",
+        "no_results": "मेल खाने वाली फसल नहीं मिली — निकटतम मिलान दिखा रहे हैं।"
     }
 }
+
 def t(key):
-    lang = st.session_state.get("lang","en")
+    lang = st.session_state.get("lang", "en")
     return TEXT.get(lang, TEXT["en"]).get(key, key)
 
-# ---------------- Theme CSS (simple, symmetric) ----------------
+# ---------------- Minimal safe CSS ----------------
+# Keep CSS small to avoid conflicts with Streamlit theme (prevents invisible text)
 st.markdown("""
     <style>
-    /* page background */
-    .stApp { background: linear-gradient(180deg, #f3fff6 0%, #f7fff9 45%, #fffdf7 100%); }
-    /* header */
-    .brand { text-align:center; font-size:56px; font-weight:800; color:#14844f; margin-top:18px; }
-    .subtitle { text-align:center; font-size:20px; color:#2f4f46; margin-bottom:6px; }
-    .desc { text-align:center; color:#556b63; margin-bottom:22px; }
-    /* start buttons */
-    .start-row { text-align:center; margin-top:18px; margin-bottom:26px; }
-    .btn { display:inline-block; padding:12px 26px; margin:6px; border-radius:28px; font-weight:700; color:#fff; text-decoration:none; }
-    .btn-green { background:#18a663; }
-    .btn-orange { background: linear-gradient(90deg,#f39c12,#ff7a2d); }
-    /* feature cards */
-    .features { display:flex; gap:22px; justify-content:center; margin:32px 40px; flex-wrap:wrap; }
-    .feat { background:white; border-radius:14px; padding:20px; width:300px; box-shadow:0 8px 24px rgba(20,60,40,0.06); text-align:center; }
-    .feat h4 { color:#114c36; margin-bottom:6px; }
-    .feat p { color:#556b63; font-size:14px; }
-    /* input card */
-    .input-container { background:white; border-radius:12px; padding:18px; box-shadow:0 8px 20px rgba(0,0,0,0.04); margin:20px auto; max-width:1100px; }
-    /* results grid */
-    .results-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:18px; margin-top:18px; }
-    .crop-card { background:white; border-radius:12px; padding:16px; box-shadow:0 12px 30px rgba(12,75,32,0.06); transition: transform .18s ease; }
-    .crop-card:hover { transform: translateY(-6px); box-shadow:0 20px 50px rgba(12,75,32,0.12); }
-    .crop-title { color:#0d6343; font-size:18px; font-weight:700; }
-    .crop-meta { color:#556b63; margin-top:6px; font-size:13px; }
-    .pill { display:inline-block; padding:6px 10px; border-radius:999px; background:#eef9f1; color:#2b6a43; font-weight:700; margin-right:8px; font-size:13px; }
-    .progress { height:8px; background:#e6f6ea; border-radius:999px; overflow:hidden; margin-top:8px; }
-    .progress-inner { height:100%; background:linear-gradient(90deg,#1b8a57,#6ed08a); }
+      /* header styles only */
+      .kv-brand { text-align:center; font-size:48px; font-weight:800; color:#158548; margin-top:14px; }
+      .kv-sub { text-align:center; color:#234f3f; margin-bottom:6px; font-size:18px; }
+      .kv-desc { text-align:center; color:#415d53; margin-bottom:20px; }
+      .kv-starts { text-align:center; margin-top:18px; margin-bottom:26px; }
+      .kv-btn { padding:10px 22px; border-radius:26px; color:white; font-weight:700; text-decoration:none; }
+      .kv-btn-green { background:#16a34a; }
+      .kv-btn-orange { background:linear-gradient(90deg,#f59e0b,#fb923c); }
+      .kv-feat { display:flex; gap:18px; justify-content:center; margin:26px 12px; flex-wrap:wrap; }
+      .kv-card { background:white; border-radius:12px; padding:16px; width:300px; box-shadow:0 6px 18px rgba(0,0,0,0.06); text-align:center; }
+      /* results grid */
+      .kv-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; margin-top:18px; }
+      .kv-crop { background:white; border-radius:12px; padding:14px; box-shadow:0 10px 28px rgba(0,0,0,0.06); }
     </style>
 """, unsafe_allow_html=True)
 
@@ -117,139 +107,147 @@ def load_df(path="final_dataset.csv"):
 
 try:
     df_global = load_df("final_dataset.csv")
-except Exception as e:
+except Exception:
     st.error("Could not load final_dataset.csv — make sure it exists in the project root.")
     st.stop()
 
-# ---------------- Pages ----------------
-def show_home():
-    st.markdown(f"<div class='brand'>{t('brand')}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='subtitle'>{t('subtitle')}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='desc'>{t('desc')}</div>", unsafe_allow_html=True)
+# ---------------- navigation callbacks ----------------
+def go_to_input(lang):
+    st.session_state["lang"] = lang
+    st.session_state["page"] = "input"
 
-    # features
-    st.markdown("<div class='features'>", unsafe_allow_html=True)
-    st.markdown(f"<div class='feat'><h4>{t('enter_details')}</h4><p>Share information about your land, soil, water, and resources.</p></div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='feat'><h4>{t('get_reco')}</h4><p>Receive AI-powered suggestions for the most profitable crops.</p></div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='feat'><h4>Plan & Grow</h4><p>Step-by-step guidance, expert support, and assistance throughout the season.</p></div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+def go_home():
+    st.session_state["page"] = "home"
 
-    # Start buttons centered
-    st.markdown("<div class='start-row'>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1,2,1])
-    with col2:
-        if st.button(t("start_en"), key="start_en"):
-            st.session_state["lang"] = "en"
-            st.session_state["page"] = "input"
-            st.experimental_rerun()
-        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        if st.button(t("start_hi"), key="start_hi"):
-            st.session_state["lang"] = "hi"
-            st.session_state["page"] = "input"
-            st.experimental_rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
+def process_and_go_results():
+    """
+    This will be bound to the form submit button via on_click.
+    It reads the form widgets from st.session_state where needed,
+    then runs the ML/filtering logic and sets st.session_state['results'] and page.
+    """
+    # form values are stored in session_state by Streamlit widgets with keys we set below
+    state = st.session_state.get("form_state")
+    soil = st.session_state.get("form_soil")
+    water = st.session_state.get("form_water")
+    season = st.session_state.get("form_season")
+    capital = st.session_state.get("form_capital")
+    cycle = st.session_state.get("form_cycle")
+    irrigation = st.session_state.get("form_irrigation")
+    fertilizer = st.session_state.get("form_fertilizer")
 
-def show_input():
-    st.markdown(f"<div class='input-container'><h3>{t('enter_details')}</h3>", unsafe_allow_html=True)
+    # save inputs
+    st.session_state["inputs"] = {
+        "state": state,
+        "soil": soil,
+        "water": water,
+        "season": season,
+        "capital": capital,
+        "cycle": cycle,
+        "irrigation": irrigation,
+        "fertilizer": fertilizer
+    }
+
+    # === EXACT ML LOGIC (unchanged) ===
     df = df_global.copy()
+    climate, temp, zone = state_climate_map.get(state, ("Tropical","20-35","General Zone"))
 
-    with st.form("farm_form"):
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            state = st.selectbox("Select State", STATES, index=0)
-            soil = st.selectbox("Soil Type", ["Loamy","Sandy loam","Clayey"], index=0)
-            water = st.selectbox("Water Availability", ["Low","Medium","High"], index=1)
-        with c2:
-            season = st.selectbox("Preferred Season", ["Kharif","Rabi","Perennial"], index=0)
-            capital = st.number_input("Available Capital (₹ per acre)", min_value=0.0, value=50000.0, step=1000.0)
-            cycle = st.number_input("Expected Crop Cycle (days)", min_value=30, value=120, step=1)
-        with c3:
-            irrigation = st.selectbox("Access to Irrigation", ["Yes","No"], index=1)
-            fertilizer = st.selectbox("Access to Fertilizers", ["Yes","No"], index=1)
-            st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+    filtered = df.loc[
+        (df["soil_type"].str.lower().str.strip() == soil.lower()) &
+        (df["season"].str.lower().str.strip() == season.lower())
+    ].copy()
 
-        submitted = st.form_submit_button(t("get_reco"))
+    filtered = filtered.loc[
+        (filtered["climate_requirement"].str.contains(climate, case=False, na=False)) |
+        (filtered["agro_climatic_zone"].str.contains(zone.split()[0], case=False, na=False))
+    ].copy()
 
-    if submitted:
-        # Save inputs
-        st.session_state["inputs"] = {
-            "state": state,
-            "soil": soil,
-            "water": water,
-            "season": season,
-            "capital": capital,
-            "cycle": cycle,
-            "irrigation": irrigation,
-            "fertilizer": fertilizer
-        }
+    filtered = filtered.loc[
+        (filtered["investment_required_inr"] <= capital) &
+        (filtered["duration_days"].between(cycle-40, cycle+40))
+    ].copy()
 
-        # === EXACT ML LOGIC (kept as in your original code) ===
-        climate, temp, zone = state_climate_map.get(state, ("Tropical","20-35","General Zone"))
-
+    if filtered.empty:
         filtered = df.loc[
             (df["soil_type"].str.lower().str.strip() == soil.lower()) &
             (df["season"].str.lower().str.strip() == season.lower())
         ].copy()
 
-        filtered = filtered.loc[
-            (filtered["climate_requirement"].str.contains(climate, case=False, na=False)) |
-            (filtered["agro_climatic_zone"].str.contains(zone.split()[0], case=False, na=False))
-        ].copy()
+    if filtered.empty:
+        filtered = df.loc[df["season"].str.lower().str.strip() == season.lower()] \
+            .sort_values("expected_roi_%", ascending=False).head(5).copy()
 
-        filtered = filtered.loc[
-            (filtered["investment_required_inr"] <= capital) &
-            (filtered["duration_days"].between(cycle-40, cycle+40))
-        ].copy()
+    scaler = MinMaxScaler()
+    for c in ["expected_roi_%","net_profit_per_acre_inr","subsidy_or_grant_%",
+              "price_volatility_%","environmental_impact_score"]:
+        filtered[c] = pd.to_numeric(filtered[c], errors="coerce").fillna(0)
 
-        if filtered.empty:
-            filtered = df.loc[
-                (df["soil_type"].str.lower().str.strip() == soil.lower()) &
-                (df["season"].str.lower().str.strip() == season.lower())
-            ].copy()
-
-        if filtered.empty:
-            filtered = df.loc[df["season"].str.lower().str.strip() == season.lower()] \
-                .sort_values("expected_roi_%", ascending=False).head(5).copy()
-
-        scaler = MinMaxScaler()
-        for c in ["expected_roi_%","net_profit_per_acre_inr","subsidy_or_grant_%",
-                  "price_volatility_%","environmental_impact_score"]:
-            filtered[c] = pd.to_numeric(filtered[c], errors="coerce").fillna(0)
-
-        if len(filtered) > 1:
-            filtered[["ROI_s","Profit_s","Subsidy_s","Risk_s","Eco_s"]] = scaler.fit_transform(
-                filtered[["expected_roi_%","net_profit_per_acre_inr","subsidy_or_grant_%",
-                          "price_volatility_%","environmental_impact_score"]]
-            )
-        else:
-            filtered[["ROI_s","Profit_s","Subsidy_s","Risk_s","Eco_s"]] = 0.5
-
-        filtered["final_score_%"] = (
-            (0.35*filtered["ROI_s"]) +
-            (0.25*filtered["Profit_s"]) +
-            (0.15*(1 - abs(filtered["investment_required_inr"] - capital)/(capital+1))) +
-            (0.1*filtered["Subsidy_s"]) +
-            (0.1*(1 - filtered["Risk_s"])) -
-            (0.05*filtered["Eco_s"])
-        ) * 100
-
-        filtered["final_score_%"] = filtered["final_score_%"].round(2)
-
-        filtered["market_stability"] = filtered["price_volatility_%"].apply(
-            lambda x: "💹 Very Stable" if x <= 4 else ("⚖️ Moderate Risk" if x <= 7 else "📉 Volatile")
+    if len(filtered) > 1:
+        filtered[["ROI_s","Profit_s","Subsidy_s","Risk_s","Eco_s"]] = scaler.fit_transform(
+            filtered[["expected_roi_%","net_profit_per_acre_inr","subsidy_or_grant_%",
+                      "price_volatility_%","environmental_impact_score"]]
         )
+    else:
+        filtered[["ROI_s","Profit_s","Subsidy_s","Risk_s","Eco_s"]] = 0.5
 
-        # Store results and go to results page
-        st.session_state["results"] = filtered.sort_values("final_score_%", ascending=False).reset_index(drop=True)
-        st.session_state["page"] = "results"
-        st.experimental_rerun()
+    filtered["final_score_%"] = (
+        (0.35*filtered["ROI_s"]) +
+        (0.25*filtered["Profit_s"]) +
+        (0.15*(1 - abs(filtered["investment_required_inr"] - capital)/(capital+1))) +
+        (0.1*filtered["Subsidy_s"]) +
+        (0.1*(1 - filtered["Risk_s"])) -
+        (0.05*filtered["Eco_s"])
+    ) * 100
 
+    filtered["final_score_%"] = filtered["final_score_%"].round(2)
+
+    filtered["market_stability"] = filtered["price_volatility_%"].apply(
+        lambda x: "💹 Very Stable" if x <= 4 else ("⚖️ Moderate Risk" if x <= 7 else "📉 Volatile")
+    )
+
+    st.session_state["results"] = filtered.sort_values("final_score_%", ascending=False).reset_index(drop=True)
+    st.session_state["page"] = "results"
+
+# ---------------- Pages ----------------
+def show_home():
+    st.markdown(f"<div class='kv-brand'>{t('brand')}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='kv-sub'>{t('subtitle')}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='kv-desc'>{t('desc')}</div>", unsafe_allow_html=True)
+
+    st.markdown("<div class='kv-feat'>", unsafe_allow_html=True)
+    st.markdown("<div class='kv-card'><h4>Enter your farm details</h4><p>Share land, soil, and resources.</p></div>", unsafe_allow_html=True)
+    st.markdown("<div class='kv-card'><h4>Get smart recommendations</h4><p>AI-powered crop suggestions.</p></div>", unsafe_allow_html=True)
+    st.markdown("<div class='kv-card'><h4>Plan & Grow</h4><p>Step-by-step support during season.</p></div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Back to home
-    if st.button(t("back_home")):
-        st.session_state["page"] = "home"
-        st.experimental_rerun()
+    st.markdown("<div class='kv-starts'>", unsafe_allow_html=True)
+    # Use on_click callbacks — no manual reruns required
+    st.button(t("start_en"), key="btn_start_en", on_click=go_to_input, args=("en",))
+    st.markdown("&nbsp;&nbsp;")
+    st.button(t("start_hi"), key="btn_start_hi", on_click=go_to_input, args=("hi",))
+    st.markdown("</div>", unsafe_allow_html=True)
+
+def show_input():
+    st.markmark = st.markdown  # safe alias if we accidentally reassign later
+    st.markdown("<div class='kv-card' style='max-width:1100px;margin:8px auto;padding:18px'>", unsafe_allow_html=True)
+    st.mark.markdown(f"### {t('enter_details')}")
+    # We use widget keys so their values are available in session_state for on_click callback
+    st.selectbox("Select State", STATES, index=0, key="form_state")
+    st.selectbox("Soil Type", ["Loamy","Sandy loam","Clayey"], index=0, key="form_soil")
+    st.selectbox("Water Availability", ["Low","Medium","High"], index=1, key="form_water")
+    st.selectbox("Preferred Season", ["Kharif","Rabi","Perennial"], index=0, key="form_season")
+    st.number_input("Available Capital (₹ per acre)", min_value=0.0, value=50000.0, step=1000.0, key="form_capital")
+    st.number_input("Expected Crop Cycle (days)", min_value=30, value=120, step=1, key="form_cycle")
+    st.selectbox("Access to Irrigation", ["Yes","No"], index=1, key="form_irrigation")
+    st.selectbox("Access to Fertilizers", ["Yes","No"], index=1, key="form_fertilizer")
+
+    # Use a button with on_click to run processing (avoids double-click issues)
+    st.markdown("<div style='margin-top:12px'>", unsafe_allow_html=True)
+    st.button(t("get_reco"), key="btn_get_reco", on_click=process_and_go_results)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+    if st.button(t("back_home"), key="btn_home_from_input", on_click=go_home):
+        pass
 
 def show_results():
     st.markdown(f"### {t('results_title')}")
@@ -258,14 +256,13 @@ def show_results():
         st.info(t("no_results"))
         return
 
-    # Left filters, right grid
     left, right = st.columns([1,3])
     with left:
         st.markdown("**Filters**")
         min_roi = st.slider("Minimum ROI %", 0, 100, 0)
         min_profit = st.number_input("Minimum Profit (₹/acre)", min_value=0, value=0, step=1000)
-        season_f = st.selectbox("Season", ['All','Kharif','Rabi','Perennial'])
-        search = st.text_input("Search crop name...")
+        season_f = st.selectbox("Season", ['All','Kharif','Rabi','Perennial'], key="filter_season")
+        search = st.text_input("Search crop name...", key="filter_search")
 
     display = results.copy()
     if 'final_score_%' in display.columns:
@@ -281,60 +278,57 @@ def show_results():
         st.info(t("no_results"))
         display = results.head(5).copy()
 
-    # Summary metrics
-    s1, s2, s3, s4 = st.columns(4)
-    s1.metric("Crops Shown", len(display))
+    # summary
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Crops Shown", len(display))
     if 'expected_roi_%' in display.columns:
-        s2.metric("Avg ROI %", f"{float(display['expected_roi_%'].astype(float).mean()):.2f}")
+        c2.metric("Avg ROI %", f"{float(display['expected_roi_%'].astype(float).mean()):.2f}")
     if 'net_profit_per_acre_inr' in display.columns:
-        s3.metric("Avg Profit (₹)", f"{float(display['net_profit_per_acre_inr'].astype(float).mean()):.0f}")
-    s4.metric("Top Score", f"{float(display['final_score_%'].max()):.2f}")
+        c3.metric("Avg Profit (₹)", f"{float(display['net_profit_per_acre_inr'].astype(float).mean()):.0f}")
+    c4.metric("Top Score", f"{float(display['final_score_%'].max()):.2f}")
 
-    st.markdown("<div class='results-grid'>", unsafe_allow_html=True)
+    st.markdown("<div class='kv-grid'>", unsafe_allow_html=True)
     for _, row in display.sort_values("final_score_%", ascending=False).head(20).iterrows():
         crop = row.get('crop_name','Unknown')
-        category = row.get('category','')
         roi = row.get('expected_roi_%','—')
         profit = row.get('net_profit_per_acre_inr','—')
         stability = row.get('market_stability','—')
-        schemes = row.get('applicable_government_schemes','—')
-        scheme_desc = row.get('scheme_benefit_description','')
         why = row.get('why_recommended','')
         final_score = float(row.get('final_score_%',0))
         climate_req = row.get('climate_requirement','—')
         ideal_temp = row.get('ideal_temperature_range','—')
+        schemes = row.get('applicable_government_schemes','—')
+        scheme_desc = row.get('scheme_benefit_description','')
 
         st.markdown(f"""
-            <div class='crop-card'>
+            <div class='kv-crop'>
                 <div style='display:flex;justify-content:space-between;align-items:center'>
-                    <div>
-                        <div class='crop-title'>{crop}</div>
-                        <div class='crop-meta'>{category} • {stability}</div>
+                    <div style='max-width:65%'>
+                        <div style='font-weight:800;color:#0d6343;font-size:16px'>{crop}</div>
+                        <div style='color:#556b63;font-size:13px'>{stability}</div>
                     </div>
                     <div style='text-align:right'>
-                        <div class='pill'>{roi}% ROI</div>
+                        <div style='display:inline-block;padding:6px 10px;border-radius:999px;background:#eef9f1;color:#2b6a43;font-weight:700'>{roi}% ROI</div>
                         <div style='font-weight:800;color:#0d6343;margin-top:6px'>₹{int(pd.to_numeric(profit, errors='coerce') or 0):,}</div>
                     </div>
                 </div>
                 <div style='height:10px'></div>
-                <div class='progress'><div class='progress-inner' style='width:{min(100,max(0,final_score))}%;'></div></div>
-                <div style='height:10px'></div>
-                <div style='font-size:13px;color:#334155'><strong>Why:</strong> {why}</div>
-                <div style='font-size:13px;color:#334155'><strong>Govt schemes:</strong> {schemes}</div>
-                <div style='font-size:13px;color:#334155'><strong>Scheme benefit:</strong> {scheme_desc}</div>
-                <div style='font-size:13px;color:#334155'><strong>Climate:</strong> {climate_req} • <strong>Temp:</strong> {ideal_temp}</div>
+                <div style='height:8px;background:#e6f6ea;border-radius:999px;overflow:hidden'>
+                    <div style='height:100%;background:linear-gradient(90deg,#1b8a57,#6ed08a);width:{min(100,max(0,final_score))}%'></div>
+                </div>
+                <div style='margin-top:8px;color:#334155;font-size:13px'><strong>Why:</strong> {why}</div>
+                <div style='margin-top:6px;color:#334155;font-size:13px'><strong>Govt schemes:</strong> {schemes}</div>
+                <div style='margin-top:6px;color:#334155;font-size:13px'><strong>Scheme benefit:</strong> {scheme_desc}</div>
+                <div style='margin-top:6px;color:#334155;font-size:13px'><strong>Climate:</strong> {climate_req} • <strong>Temp:</strong> {ideal_temp}</div>
             </div>
         """, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
     st.download_button(t("download"), data=display.to_csv(index=False).encode('utf-8'), file_name="KrishiVox_Recommendations.csv")
-    if st.button(t("back_home")):
-        st.session_state["page"] = "home"
-        st.experimental_rerun()
+    st.button(t("back_home"), key="btn_back_home_results", on_click=go_home)
 
 # ---------------- Router ----------------
-page = st.session_state.get("page","home")
+page = st.session_state.get("page", "home")
 if page == "home":
     show_home()
 elif page == "input":
