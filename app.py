@@ -1,4 +1,3 @@
-@@ -0,0 +1,99 @@
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import streamlit as st
