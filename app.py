@@ -1,78 +1,58 @@
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import streamlit as st
+import json
 
 # ----------------- CONFIG -----------------
 st.set_page_config(page_title="KRISHIVOX", page_icon="🌾", layout="wide")
 
-st.markdown(
-    """
-    <style>
-    .main {
-        background: linear-gradient(180deg, #0e0e0e 0%, #1c1c1c 100%);
-        color: white;
-    }
-    h1, h2, h3, h4, h5 {
-        color: #E0C46C;
-        text-align: center;
-    }
-    .card {
-        background-color: #181818;
-        border-radius: 16px;
-        padding: 20px;
-        box-shadow: 0 4px 8px rgba(255, 215, 0, 0.15);
-        border: 1px solid rgba(255, 215, 0, 0.25);
-        margin: 10px;
-        transition: 0.3s ease;
-    }
-    .card:hover {
-        transform: scale(1.02);
-        box-shadow: 0 6px 12px rgba(255, 215, 0, 0.35);
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+st.markdown("""
+<style>
+.main {
+    background: linear-gradient(180deg, #0e0e0e 0%, #1c1c1c 100%);
+    color: white;
+}
+h1, h2, h3, h4, h5 {
+    color: #E0C46C;
+    text-align: center;
+}
+.card {
+    background-color: #181818;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 8px rgba(255, 215, 0, 0.15);
+    border: 1px solid rgba(255, 215, 0, 0.25);
+    margin: 10px;
+    transition: 0.3s ease;
+}
+.card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 6px 12px rgba(255, 215, 0, 0.35);
+}
+</style>
+""", unsafe_allow_html=True)
 
-# ----------------- MULTILINGUAL SUPPORT -----------------
-language = st.radio("🌐 Select Language / भाषा चुनें", ["English", "हिन्दी"], horizontal=True)
+# ----------------- LOAD TRANSLATIONS -----------------
+with open("translations.json", "r", encoding="utf-8") as f:
+    translations = json.load(f)
 
-text = {
-    "English": {
-        "title": "🌾 KRISHIVOX – Smart Crop Recommendation System",
-        "state": "Select State",
-        "soil": "Soil Type",
-        "water": "Water Availability",
-        "season": "Preferred Season",
-        "irrigation": "Access to Irrigation",
-        "fertilizer": "Access to Fertilizers",
-        "capital": "Available Capital (₹ per hectare)",
-        "cycle": "Expected Crop Cycle (days)",
-        "get": "🔍 Get Recommendations",
-        "results": "Recommended Crops for You",
-        "sort": "Sort crops by:",
-        "download": "📥 Download Full Recommendation Report",
-        "success": "✅ Recommended Crops Found for"
-    },
-    "हिन्दी": {
-        "title": "🌾 KRISHIVOX – स्मार्ट फसल अनुशंसा प्रणाली",
-        "state": "राज्य चुनें",
-        "soil": "मिट्टी का प्रकार",
-        "water": "पानी की उपलब्धता",
-        "season": "पसंदीदा मौसम",
-        "irrigation": "सिंचाई की सुविधा",
-        "fertilizer": "उर्वरक की सुविधा",
-        "capital": "उपलब्ध पूंजी (₹ प्रति हेक्टेयर)",
-        "cycle": "अनुमानित फसल चक्र (दिनों में)",
-        "get": "🔍 अनुशंसाएँ प्राप्त करें",
-        "results": "आपके लिए अनुशंसित फसलें",
-        "sort": "फसलों को क्रमबद्ध करें:",
-        "download": "📥 पूरी अनुशंसा रिपोर्ट डाउनलोड करें",
-        "success": "✅ निम्नलिखित फसलें अनुशंसित हैं:"
-    }
-}[language]
+language = st.radio("🌐 Language / भाषा", ["English", "हिन्दी"], horizontal=True)
+lang_code = "hi" if language == "हिन्दी" else "en"
 
-st.title(text["title"])
+def t(key, **kwargs):
+    """Translation helper"""
+    text = translations.get(lang_code, {}).get(key, key)
+    if kwargs:
+        return text.format(**kwargs)
+    return text
+
+# ----------------- HEADER -----------------
+st.markdown(f"""
+<h1 style='color:#E0C46C;'>{t('brand_name')}</h1>
+<p style='text-align:center; color:#cccccc;'>{t('tagline')}</p>
+""", unsafe_allow_html=True)
+
+st.title(t("title"))
 
 # ----------------- DATA -----------------
 df = pd.read_csv("final_dataset.csv")
@@ -102,19 +82,19 @@ state_climate_map = {
 with st.container():
     col1, col2, col3 = st.columns(3)
     with col1:
-        state = st.selectbox(text["state"], list(state_climate_map.keys()))
-        soil = st.selectbox(text["soil"], ["Loamy", "Sandy loam", "Clayey"])
-        water = st.selectbox(text["water"], ["Low", "Medium", "High"])
+        state = st.selectbox(t("state"), list(state_climate_map.keys()))
+        soil = st.selectbox(t("soil"), ["Loamy", "Sandy loam", "Clayey"])
+        water = st.selectbox(t("water"), ["Low", "Medium", "High"])
     with col2:
-        season = st.selectbox(text["season"], ["Kharif", "Rabi", "Perennial"])
-        irrigation = st.selectbox(text["irrigation"], ["Yes", "No"])
-        fertilizer = st.selectbox(text["fertilizer"], ["Yes", "No"])
+        season = st.selectbox(t("season"), ["Kharif", "Rabi", "Perennial"])
+        irrigation = st.selectbox(t("irrigation"), ["Yes", "No"])
+        fertilizer = st.selectbox(t("fertilizer"), ["Yes", "No"])
     with col3:
-        capital = st.number_input(text["capital"], min_value=0.0, value=50000.0)
-        cycle = st.number_input(text["cycle"], min_value=30, value=120)
+        capital = st.number_input(t("capital"), min_value=0.0, value=50000.0)
+        cycle = st.number_input(t("cycle"), min_value=30, value=120)
 
-# ----------------- PROCESS -----------------
-if st.button(text["get"]):
+# ----------------- PREDICTION LOGIC -----------------
+if st.button(t("recommend")):
     climate, temp, zone = state_climate_map.get(state, ("Tropical", "20-35", "General Zone"))
 
     filtered = df.loc[
@@ -129,7 +109,7 @@ if st.button(text["get"]):
 
     filtered = filtered.loc[
         (filtered["investment_required_inr"] <= capital) &
-        (filtered["duration_days"].between(cycle-40, cycle+40))
+        (filtered["duration_days"].between(cycle - 40, cycle + 40))
     ].copy()
 
     if filtered.empty:
@@ -142,6 +122,7 @@ if st.button(text["get"]):
         filtered = df.loc[df["season"].str.lower().str.strip() == season.lower()] \
             .sort_values("expected_roi_%", ascending=False).head(5).copy()
 
+    # Normalize & score
     scaler = MinMaxScaler()
     for c in ["expected_roi_%", "net_profit_per_acre_inr", "subsidy_or_grant_%", "price_volatility_%", "environmental_impact_score"]:
         filtered[c] = pd.to_numeric(filtered[c], errors="coerce").fillna(0)
@@ -167,34 +148,31 @@ if st.button(text["get"]):
         lambda x: "💹 Very Stable" if x <= 4 else ("⚖️ Moderate Risk" if x <= 7 else "📉 Volatile")
     )
 
-    st.success(f"{text['success']} {state} ({soil}, {season})")
+    st.success(t("results_found", n=len(filtered), state=state))
 
-    sort_by = st.selectbox(text["sort"], ["final_score_%", "expected_roi_%", "net_profit_per_acre_inr", "investment_required_inr"])
+    sort_by = st.selectbox(t("sort"), ["final_score_%", "expected_roi_%", "net_profit_per_acre_inr", "investment_required_inr"])
     filtered = filtered.sort_values(sort_by, ascending=False).head(6)
 
-    # ----------------- GRID -----------------
-    st.markdown(f"### 🌱 {text['results']}")
+    # ----------------- GRID VIEW -----------------
+    st.markdown(f"### 🌱 {t('results')}")
     cols = st.columns(3)
     for i, (_, row) in enumerate(filtered.iterrows()):
         col = cols[i % 3]
         with col:
-            st.markdown(
-                f"""
-                <div class="card">
-                    <h3>{row['crop_name']} ({row['scientific_name']})</h3>
-                    <p><b>ROI:</b> {row['expected_roi_%']}%</p>
-                    <p><b>Profit:</b> ₹{int(row['net_profit_per_acre_inr'])} / hectare</p>
-                    <p><b>Investment:</b> ₹{int(row['investment_required_inr'])} / hectare</p>
-                    <p><b>Soil:</b> {row['soil_type']} | <b>Season:</b> {row['season']}</p>
-                    <p><b>Stability:</b> {row['market_stability']}</p>
-                    <p><b>Cycle:</b> {row['duration_days']} days</p>
-                    <p><b>Scheme:</b> {row['applicable_government_schemes']} ({row['subsidy_or_grant_%']}%)</p>
-                    <p><b>Score:</b> <b style='color:#FFD700'>{row['final_score_%']}%</b></p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+            st.markdown(f"""
+            <div class="card">
+                <h3>{row['crop_name']} ({row['scientific_name']})</h3>
+                <p><b>{t('roi')}:</b> {row['expected_roi_%']}%</p>
+                <p><b>{t('profit')}:</b> ₹{int(row['net_profit_per_acre_inr'])} / ha</p>
+                <p><b>{t('investment')}:</b> ₹{int(row['investment_required_inr'])} / ha</p>
+                <p><b>{t('soil_label')}:</b> {row['soil_type']} | <b>{t('season_label')}:</b> {row['season']}</p>
+                <p><b>{t('market')}:</b> {row['market_stability']}</p>
+                <p><b>Cycle:</b> {row['duration_days']} days</p>
+                <p><b>Scheme:</b> {row['applicable_government_schemes']} ({row['subsidy_or_grant_%']}%)</p>
+                <p><b>{t('score')}:</b> <b style='color:#FFD700'>{row['final_score_%']}%</b></p>
+            </div>
+            """, unsafe_allow_html=True)
 
     # ----------------- DOWNLOAD -----------------
     filtered.to_csv("Recommended_Crops.csv", index=False)
-    st.download_button(text["download"], data=open("Recommended_Crops.csv", "rb"), file_name="KRISHIVOX_Crop_Recommendations.csv")
+    st.download_button(t("download"), data=open("Recommended_Crops.csv", "rb"), file_name="KRISHIVOX_Crop_Recommendations.csv")
